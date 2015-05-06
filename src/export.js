@@ -13,6 +13,15 @@
 		return el.firstChild.href;
 	}
 
+	function str2ab(str) {
+		var buf = new ArrayBuffer(str.length);
+		var bufView = new Uint8Array(buf);
+		for (var i=0, strLen=str.length; i<strLen; i++) {
+			bufView[i] = str.charCodeAt(i);
+		}
+		return buf;
+	}
+
 	var e = Beatbox.Export = {
 		_getWaveForInstrument : function(instrumentObj, callback) {
 			if(typeof instrumentObj.bbWave != "undefined")
@@ -23,7 +32,16 @@
 					if(typeof instrumentObj.soundObj.bbWave != "undefined")
 						return next(null, instrumentObj.soundObj.bbWave);
 
-					e._decodeToBuffer(AV.Asset.fromURL(qualifyURL(instrumentObj.soundObj._urls[0])), function(err, buffer) {
+					var url = instrumentObj.soundObj._urls[0];
+
+					var asset = null;
+					if(url.match(/^data:/)) {
+						var m = url.match(/base64,(.*)$/);
+						asset = AV.Asset.fromBuffer(str2ab(atob(m[1])));
+					} else
+						asset = AV.Asset.fromURL(qualifyURL(url));
+
+					e._decodeToBuffer(asset, function(err, buffer) {
 						if(err)
 							console.error("Error decoding "+instrumentObj.soundObj._urls[0]+":", err);
 
