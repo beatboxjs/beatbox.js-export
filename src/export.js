@@ -27,16 +27,13 @@
 	}
 
 	var e = Beatbox.Export = {
-		_getWaveForInstrument : function(instrumentObj, callback) {
-			if(typeof instrumentObj.bbWave != "undefined")
-				return callback(instrumentObj.bbWave);
-
+		_getWaveForInstrument : function(instrumentWithParams, callback) {
 			async.waterfall([
 				function(next) {
-					if(typeof instrumentObj.soundObj.bbWave != "undefined")
-						return next(null, instrumentObj.soundObj.bbWave);
+					if(typeof instrumentWithParams.instrumentObj.soundObj.bbWave != "undefined")
+						return next(null, instrumentWithParams.instrumentObj.soundObj.bbWave);
 
-					var url = instrumentObj.soundObj._urls[0];
+					var url = instrumentWithParams.instrumentObj.soundObj._urls[0];
 
 					var asset = null;
 					if(url.match(/^data:/)) {
@@ -47,18 +44,26 @@
 
 					e._decodeToBuffer(asset, function(err, buffer) {
 						if(err)
-							console.error("Error decoding "+instrumentObj.soundObj._urls[0]+":", err);
+							console.error("Error decoding "+instrumentWithParams.instrumentObj.soundObj._urls[0]+":", err);
 
-						instrumentObj.soundObj.bbWave = buffer || null;
+						instrumentWithParams.instrumentObj.soundObj.bbWave = buffer || null;
 
+						// TODO: Respect channel count, rate
 						next(null, buffer);
 					});
 				},
 				function(soundWave, next) {
-					// TODO: Respect Sprite, channel count, rate
-					instrumentObj.bbWave = soundWave;
+					// TODO: Respect Sprite
+					instrumentWithParams.instrumentObj.bbWave = soundWave;
 
-					callback(instrumentObj.bbWave);
+					var wave = instrumentWithParams.instrumentObj.bbWave;
+					if(instrumentWithParams.volume != 1) {
+						wave = new Float32Array(wave);
+						for(var i=0; i<wave.length; i++)
+							wave[i] *= instrumentWithParams.volume;
+					}
+
+					callback(wave);
 				}
 			]);
 		},
@@ -119,7 +124,7 @@
 					if(!instrWithParams)
 						return async.nextTick(next);
 
-					e._getWaveForInstrument(instrWithParams.instrumentObj, function(wave) {
+					e._getWaveForInstrument(instrWithParams, function(wave) {
 						if(wave) {
 							var pos;
 							for(pos=Math.floor(i*strokeLength*44.1),waveIdx=0; waveIdx<wave.length; pos++,waveIdx+=1) {
