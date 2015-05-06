@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="utf-8">
+	</head>
+	<body>
+		<iframe src="../bower_components/beatbox/demo/demo.html" style="width:100%; height:100%; border:none;"></iframe>
+		<script>
+			function qualifyURL(url) {
+				var el = document.createElement('div');
+				el.innerHTML = '<a href="'+url.split('&').join('&amp;').split('<').join('&lt;').split('"').join('&quot;')+'">x</a>';
+				return el.firstChild.href;
+			}
+
+			var iframe = document.getElementsByTagName("iframe")[0];
+			iframe.onload = function() {
+				var f = document.getElementsByTagName("iframe")[0].contentWindow;
+				[
+					"bower_components/async/lib/async.js",
+					"bower_components/av/index.js",
+					"bower_components/mp3/index.js",
+					"bower_components/libmp3lame-js/index.js",
+					"bower_components/wav-encoder/build/wav-encoder.js",
+					"bower_components/FileSaver/FileSaver.js",
+					"src/export.js"
+				].forEach(function(it) {
+					var s = f.document.createElement("script");
+					s.setAttribute("src", qualifyURL("../"+it));
+					f.document.getElementsByTagName("head")[0].appendChild(s);
+				});
+
+				var d = f.document.createElement("div");
+				d.innerHTML = '<button onclick="player.exportMP3(function(blob) { saveAs(blob, \'song.mp3\'); })">Export MP3</button>' +
+					'<button onclick="player.exportWAV(function(blob) { saveAs(blob, \'song.wav\'); })">Export WAV</button>';
+				f.document.getElementsByTagName("body")[0].appendChild(d);
+			}
+		</script>
+	</body>
+</html>
