@@ -84,7 +84,7 @@
 			})
 		},
 
-		_encodeMP3 : function(left, right, callback) {
+		_encodeMP3 : function(left, right, callback, progressCallback) {
 			var mp3codec = Lame.init();
 			Lame.set_mode(mp3codec, Lame.JOINT_STEREO);
 			Lame.set_num_channels(mp3codec, 2);
@@ -94,10 +94,11 @@
 			Lame.init_params(mp3codec);
 
 			var data = [ ];
-			var bufferLength = 20000;
-			async.each(forValues(0, left.length, bufferLength), function(i, next) {
+			var bufferLength = 5000;
+			async.eachSeries(forValues(0, left.length, bufferLength), function(i, next) {
 				data.push(Lame.encode_buffer_ieee_float(mp3codec, left.subarray(i, i+bufferLength), right.subarray(i, i+bufferLength)).data);
-				setTimeout(next, 0);
+				progressCallback && progressCallback(i/left.length);
+				async.nextTick(next);
 			}, function() {
 				data.push(Lame.encode_flush(mp3codec).data);
 
@@ -107,47 +108,58 @@
 			});
 		},
 
-		_getBufferForPattern : function(pattern, strokeLength, callback) {
-			var bufferL = new Array(Math.ceil(pattern.length*strokeLength*44.1));
-			var bufferR = new Array(Math.ceil(pattern.length*strokeLength*44.1));
+		_getBufferForPattern : function(pattern, strokeLength, callback, progressCallback) {
+			var bufferL = new Float32Array(Math.ceil((3000+pattern.length*strokeLength)*44.1));
+			var bufferR = new Float32Array(Math.ceil((3000+pattern.length*strokeLength)*44.1));
+			var maxPos = 0;
+			var lastProgress = 0;
 			async.eachSeries(arrayKeys(pattern), function(i, next) {
 				async.eachSeries(arrayKeys(pattern[i]), function(j, next) {
 					var instrWithParams = Beatbox._getInstrumentWithParams(pattern[i][j]);
 					if(!instrWithParams)
-						return setTimeout(next, 0);
+						return async.nextTick(next);
 
 					e._getWaveForInstrument(instrWithParams.instrumentObj, function(wave) {
 						if(wave) {
-							for(var pos=Math.floor(i*strokeLength*44.1),waveIdx=0; waveIdx<wave.length; pos++,waveIdx+=1) {
-								if(!bufferL[pos])
-									bufferL[pos] = 0;
+							var pos;
+							for(pos=Math.floor(i*strokeLength*44.1),waveIdx=0; waveIdx<wave.length; pos++,waveIdx+=1) {
 								bufferL[pos] += wave[waveIdx];
-
-								if(!bufferR[pos])
-									bufferR[pos] = 0;
 								bufferR[pos] += wave[waveIdx];
 							}
+							maxPos = Math.max(maxPos, pos);
 						}
 
-						setTimeout(next, 0);
+						async.nextTick(next);
 					});
-				}, next);
+				}, function() {
+					var newProgress = i/pattern.length;
+					if(newProgress - lastProgress > 0.003) {
+						progressCallback && progressCallback(newProgress);
+						lastProgress = newProgress;
+					}
+
+					async.nextTick(next);
+				});
 			}, function() {
-				callback(new Float32Array(bufferL), new Float32Array(bufferR));
+				callback(bufferL.subarray(0, maxPos), bufferR.subarray(0, maxPos));
 			});
 		}
 	};
 
-	Beatbox.prototype.exportMP3 = function(callback) {
+	Beatbox.prototype.exportMP3 = function(callback, progressCallback) {
 		e._getBufferForPattern(this._pattern, this._strokeLength, function(left, right) {
-			e._encodeMP3(left, right, callback);
+			e._encodeMP3(left, right, callback, function(progress) {
+				progressCallback && progressCallback(.25 + progress*.75);
+			});
+		}, function(progress) {
+			progressCallback && progressCallback(progress*.25);
 		});
 	};
 
-	Beatbox.prototype.exportWAV = function(callback) {
+	Beatbox.prototype.exportWAV = function(callback, progressCallback) {
 		e._getBufferForPattern(this._pattern, this._strokeLength, function(left, right) {
 			e._encodeWAV(left, right, callback);
-		});
+		}, progressCallback);
 	};
 
 })();
