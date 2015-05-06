@@ -35,6 +35,7 @@ To run the demo, run the following commands:
 ```bash
 bower install
 bower install FileSaver
+bower install mp3=https://github.com/audiocogs/mp3.js/releases/download/v0.1.0/mp3.js
 cd bower_components/beatbox
 bower install
 ```
