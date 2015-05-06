@@ -1,8 +1,12 @@
 (function() {
 
 	function arrayKeys(arr) {
+		return forValues(0, arr.length, 1);
+	}
+
+	function forValues(start, limit, increase) {
 		var ret = [ ];
-		for(var i=0; i<arr.length; i++)
+		for(var i=start; i<limit; i+=increase)
 			ret.push(i);
 		return ret;
 	}
@@ -91,15 +95,16 @@
 
 			var data = [ ];
 			var bufferLength = 20000;
-			for(var i=0; i<left.length; i+=bufferLength) {
+			async.each(forValues(0, left.length, bufferLength), function(i, next) {
 				data.push(Lame.encode_buffer_ieee_float(mp3codec, left.subarray(i, i+bufferLength), right.subarray(i, i+bufferLength)).data);
-			}
+				setTimeout(next, 0);
+			}, function() {
+				data.push(Lame.encode_flush(mp3codec).data);
 
-			data.push(Lame.encode_flush(mp3codec).data);
+				Lame.close(mp3codec);
 
-			Lame.close(mp3codec);
-
-			callback(new Blob(data, { type: "audio/mp3" }));
+				callback(new Blob(data, { type: "audio/mp3" }));
+			});
 		},
 
 		_getBufferForPattern : function(pattern, strokeLength, callback) {
@@ -109,7 +114,7 @@
 				async.eachSeries(arrayKeys(pattern[i]), function(j, next) {
 					var instrWithParams = Beatbox._getInstrumentWithParams(pattern[i][j]);
 					if(!instrWithParams)
-						return next();
+						return setTimeout(next, 0);
 
 					e._getWaveForInstrument(instrWithParams.instrumentObj, function(wave) {
 						if(wave) {
@@ -124,7 +129,7 @@
 							}
 						}
 
-						next();
+						setTimeout(next, 0);
 					});
 				}, next);
 			}, function() {
