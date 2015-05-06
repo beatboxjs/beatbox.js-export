@@ -5,7 +5,7 @@
     "Candid Dauth <cdauth@cdauth.eu>"
   ],
   "description": "Export a beatbox.js song to an audio file.",
-  "main": "dist/aurora.js",
+  "main": "dist/beatbox-export.js",
   "ignore": [
     "**/.*",
     "*.iml",
