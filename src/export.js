@@ -26,6 +26,16 @@
 		return buf;
 	}
 
+	function sliceTypedArray(arr, start, end) {
+		if(arr.slice)
+			return arr.slice(start, end);
+
+		var ret = new arr.constructor(end-start);
+		for(var i=start,j=0; i<end; i++,j++)
+			ret[j] = arr[i];
+		return ret;
+	}
+
 	var e = Beatbox.Export = {
 		_getWaveForInstrument : function(instrumentWithParams, callback) {
 			async.waterfall([
@@ -48,7 +58,7 @@
 
 						instrumentWithParams.instrumentObj.soundObj.bbWave = buffer || null;
 
-						// TODO: Respect channel count, rate
+						// TODO: Respect channel count, sample rate
 						next(null, buffer);
 					});
 				},
@@ -126,7 +136,7 @@
 
 					e._getWaveForInstrument(instrWithParams, function(wave) {
 						if(wave) {
-							var pos;
+							var pos,waveIdx;
 							for(pos=Math.floor(i*strokeLength*44.1),waveIdx=0; waveIdx<wave.length; pos++,waveIdx+=1) {
 								bufferL[pos] += wave[waveIdx];
 								bufferR[pos] += wave[waveIdx];
@@ -146,7 +156,7 @@
 					async.nextTick(next);
 				});
 			}, function() {
-				callback(bufferL.subarray(0, maxPos), bufferR.subarray(0, maxPos));
+				callback(sliceTypedArray(bufferL, 0, maxPos), sliceTypedArray(bufferR, 0, maxPos));
 			});
 		}
 	};
