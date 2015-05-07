@@ -37,13 +37,13 @@
 	}
 
 	var e = Beatbox.Export = {
-		_getWaveForInstrument : function(instrumentWithParams, callback) {
+		_getWaveForInstrument : function(instrumentObj, callback) {
 			async.waterfall([
 				function(next) {
-					if(typeof instrumentWithParams.instrumentObj.soundObj.bbWave != "undefined")
-						return next(null, instrumentWithParams.instrumentObj.soundObj.bbWave);
+					if(typeof instrumentObj.soundObj.bbChannelData != "undefined")
+						return next(null, instrumentObj.soundObj.bbChannelData);
 
-					var url = instrumentWithParams.instrumentObj.soundObj._urls[0];
+					var url = instrumentObj.soundObj._urls[0];
 
 					var asset = null;
 					if(url.match(/^data:/)) {
@@ -52,39 +52,45 @@
 					} else
 						asset = AV.Asset.fromURL(qualifyURL(url));
 
-					e._decodeToBuffer(asset, function(err, buffer) {
+
+					e._decodeToBuffer(asset, function(err, channelData) {
 						if(err)
-							console.error("Error decoding "+instrumentWithParams.instrumentObj.soundObj._urls[0]+":", err);
+							console.error("Error decoding "+instrumentObj.soundObj._urls[0]+":", err);
 
-						instrumentWithParams.instrumentObj.soundObj.bbWave = buffer || null;
+						instrumentObj.soundObj.bbChannelData = channelData || null;
 
-						// TODO: Respect channel count, sample rate
-						next(null, buffer);
+						next(null, channelData);
 					});
 				},
-				function(soundWave, next) {
+				function(channelData, next) {
 					// TODO: Respect Sprite
-					instrumentWithParams.instrumentObj.bbWave = soundWave;
+					instrumentObj.bbChannelData = channelData;
 
-					var wave = instrumentWithParams.instrumentObj.bbWave;
-					if(instrumentWithParams.volume != 1) {
-						wave = new Float32Array(wave);
-						for(var i=0; i<wave.length; i++)
-							wave[i] *= instrumentWithParams.volume;
-					}
-
-					callback(wave);
+					callback(instrumentObj.bbChannelData);
 				}
 			]);
 		},
 
 		_decodeToBuffer : function(asset, callback) {
 			asset.decodeToBuffer(function(buffer) {
-				callback(null, buffer);
+				asset.get("format", function(format) {
+					var length = Math.ceil(buffer.length / format.channelsPerFrame);
+
+					// TODO: Respect sample rate
+
+					var left = new Float32Array(length);
+					var right = new Float32Array(length);
+
+					for(var i=0; i<length; i++) {
+						left[i] = buffer[i*format.channelsPerFrame];
+						right[i] = buffer[i*format.channelsPerFrame + (format.channelsPerFrame > 1 ? 1 : 0)];
+					}
+
+					callback(null, [ left, right ]);
+				});
 			});
-			asset.on("error", function(err) {
-				callback(err);
-			});
+
+			asset.on("error", callback);
 		},
 
 		_encodeWAV : function(left, right, callback) {
@@ -134,12 +140,12 @@
 					if(!instrWithParams)
 						return async.nextTick(next);
 
-					e._getWaveForInstrument(instrWithParams, function(wave) {
-						if(wave) {
+					e._getWaveForInstrument(instrWithParams.instrumentObj, function(channelData) {
+						if(channelData) {
 							var pos,waveIdx;
-							for(pos=Math.floor(i*strokeLength*44.1),waveIdx=0; waveIdx<wave.length; pos++,waveIdx+=1) {
-								bufferL[pos] += wave[waveIdx];
-								bufferR[pos] += wave[waveIdx];
+							for(pos=Math.floor(i*strokeLength*44.1),waveIdx=0; waveIdx<channelData[0].length; pos++,waveIdx++) {
+								bufferL[pos] += channelData[0][waveIdx] * instrWithParams.volume;
+								bufferR[pos] += channelData[1][waveIdx] * instrWithParams.volume;
 							}
 							maxPos = Math.max(maxPos, pos);
 						}
