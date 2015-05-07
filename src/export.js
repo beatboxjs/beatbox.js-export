@@ -37,6 +37,7 @@
 	}
 
 	var e = Beatbox.Export = {
+		_outputSampleRate : 44100,
 		_getWaveForInstrument : function(instrumentObj, callback) {
 			async.waterfall([
 				function(next) {
@@ -76,14 +77,17 @@
 				asset.get("format", function(format) {
 					var length = Math.ceil(buffer.length / format.channelsPerFrame);
 
-					// TODO: Respect sample rate
-
 					var left = new Float32Array(length);
 					var right = new Float32Array(length);
 
 					for(var i=0; i<length; i++) {
 						left[i] = buffer[i*format.channelsPerFrame];
 						right[i] = buffer[i*format.channelsPerFrame + (format.channelsPerFrame > 1 ? 1 : 0)];
+					}
+
+					if(format.sampleRate != e._outputSampleRate) {
+						left = audioLib.Sink.resample(left, format.sampleRate, e._outputSampleRate);
+						right = audioLib.Sink.resample(right, format.sampleRate, e._outputSampleRate);
 					}
 
 					callback(null, [ left, right ]);
@@ -95,7 +99,7 @@
 
 		_encodeWAV : function(left, right, callback) {
 			WavEncoder.encode({
-				sampleRate: 44100,
+				sampleRate: e._outputSampleRate,
 				channelData: [
 					left,
 					right
@@ -109,8 +113,8 @@
 			var mp3codec = Lame.init();
 			Lame.set_mode(mp3codec, Lame.JOINT_STEREO);
 			Lame.set_num_channels(mp3codec, 2);
-			Lame.set_in_samplerate(mp3codec, 44100);
-			Lame.set_out_samplerate(mp3codec, 44100);
+			Lame.set_in_samplerate(mp3codec, e._outputSampleRate);
+			Lame.set_out_samplerate(mp3codec, e._outputSampleRate);
 			Lame.set_bitrate(mp3codec, 128);
 			Lame.init_params(mp3codec);
 
@@ -130,8 +134,8 @@
 		},
 
 		_getBufferForPattern : function(pattern, strokeLength, callback, progressCallback) {
-			var bufferL = new Float32Array(Math.ceil((3000+pattern.length*strokeLength)*44.1));
-			var bufferR = new Float32Array(Math.ceil((3000+pattern.length*strokeLength)*44.1));
+			var bufferL = new Float32Array(Math.ceil((3000+pattern.length*strokeLength)*e._outputSampleRate / 1000));
+			var bufferR = new Float32Array(Math.ceil((3000+pattern.length*strokeLength)*e._outputSampleRate / 1000));
 			var maxPos = 0;
 			var lastProgress = 0;
 			async.eachSeries(arrayKeys(pattern), function(i, next) {
@@ -143,7 +147,7 @@
 					e._getWaveForInstrument(instrWithParams.instrumentObj, function(channelData) {
 						if(channelData) {
 							var pos,waveIdx;
-							for(pos=Math.floor(i*strokeLength*44.1),waveIdx=0; waveIdx<channelData[0].length; pos++,waveIdx++) {
+							for(pos=Math.floor(i*strokeLength*e._outputSampleRate / 1000),waveIdx=0; waveIdx<channelData[0].length; pos++,waveIdx++) {
 								bufferL[pos] += channelData[0][waveIdx] * instrWithParams.volume;
 								bufferR[pos] += channelData[1][waveIdx] * instrWithParams.volume;
 							}
