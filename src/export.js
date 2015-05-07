@@ -39,6 +39,9 @@
 	var e = Beatbox.Export = {
 		_outputSampleRate : 44100,
 		_getWaveForInstrument : function(instrumentObj, callback) {
+			if(instrumentObj.bbChannelData)
+				return callback(instrumentObj.bbChannelData);
+
 			async.waterfall([
 				function(next) {
 					if(typeof instrumentObj.soundObj.bbChannelData != "undefined")
@@ -64,8 +67,14 @@
 					});
 				},
 				function(channelData, next) {
-					// TODO: Respect Sprite
-					instrumentObj.bbChannelData = channelData;
+					if(instrumentObj.sprite) {
+						instrumentObj.bbChannelData = [ ];
+						var sprite = instrumentObj.soundObj._sprite[instrumentObj.sprite] || [ 0, 0 ];
+						for(var i=0; i<channelData.length; i++) {
+							instrumentObj.bbChannelData.push(sliceTypedArray(channelData[i], sprite[0] * e._outputSampleRate / 1000, (sprite[0] + sprite[1]) * e._outputSampleRate / 1000));
+						}
+					} else
+						instrumentObj.bbChannelData = channelData;
 
 					callback(instrumentObj.bbChannelData);
 				}
