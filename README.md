@@ -20,10 +20,14 @@ var player = new Beatbox(pattern, beatLength, repeat); // See beatbox.js documen
 
 player.exportMP3(function(blob) {
 	saveAs(blob, "song.mp3");
+}, function(progress) {
+	// progress is a number between 0 and 1
 });
 
 player.exportWAV(function(blob) {
 	saveAs(blob, "song.wav");
+}, function(progress) {
+	// progress is a number between 0 and 1
 });
 ```
 
