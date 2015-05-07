@@ -156,6 +156,11 @@
 					async.nextTick(next);
 				});
 			}, function() {
+				for(var i=0; i<bufferL.length; i++) {
+					bufferL[i] = Math.tanh(bufferL[i]);
+					bufferR[i] = Math.tanh(bufferR[i]);
+				}
+
 				callback(sliceTypedArray(bufferL, 0, maxPos), sliceTypedArray(bufferR, 0, maxPos));
 			});
 		}
