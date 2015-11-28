@@ -20,6 +20,6 @@
     "av": "https://github.com/audiocogs/aurora.js/releases/download/v0.4.4/aurora.js",
     "wav-encoder": "~0.3.0",
     "libmp3lame-js": "https://raw.githubusercontent.com/akrennmair/libmp3lame-js/master/dist/libmp3lame.js",
-    "audiolib.js": "~0.6.6"
+    "audiolib": "~0.6.6"
   }
 }
