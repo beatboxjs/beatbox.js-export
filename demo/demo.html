@@ -2,39 +2,61 @@
 <html>
 	<head>
 		<meta charset="utf-8">
+        <script src="beatbox-export.js"></script>
+		<script src="../node_modules/file-saver/FileSaver.js"></script>
+		<script>
+            //Beatbox._webAudio = false;
+            Beatbox.registerInstrument("sn", { src: [ "sn.mp3" ] });
+            Beatbox.registerInstrument("su", { src: [ "su.mp3" ] });
+
+            var sn_quiet = { instrument: "sn", volume: 0.3 };
+
+            var pattern = [
+                [ "sn", "su" ],
+                [ sn_quiet ],
+                [ sn_quiet ],
+                [ sn_quiet, "su" ],
+                [ "sn" ],
+                [ sn_quiet ],
+                [ sn_quiet, "su" ],
+                [ sn_quiet ],
+                [ "sn" ],
+                [ sn_quiet ],
+                [ sn_quiet, "su" ],
+                [ sn_quiet ],
+                [ "sn", "su" ],
+                [ sn_quiet ],
+                [ sn_quiet ],
+                [ sn_quiet ]
+            ];
+
+            var bpm = 100;
+
+            var repeat = true;
+
+			var player = new Beatbox(pattern, 60000/bpm/4, repeat);
+
+            player.onbeat = function(beat) {
+                document.getElementById("pos").innerHTML = ""+beat;
+            };
+
+            player.onstop = function() {
+                document.getElementById("pos").innerHTML = "stop";
+            };
+		</script>
 	</head>
 	<body>
-		<iframe src="../bower_components/beatbox/demo/demo.html" style="width:100%; height:100%; border:none;"></iframe>
-		<script>
-			function qualifyURL(url) {
-				var el = document.createElement('div');
-				el.innerHTML = '<a href="'+url.split('&').join('&amp;').split('<').join('&lt;').split('"').join('&quot;')+'">x</a>';
-				return el.firstChild.href;
-			}
-
-			var iframe = document.getElementsByTagName("iframe")[0];
-			iframe.onload = function() {
-				var f = document.getElementsByTagName("iframe")[0].contentWindow;
-				[
-					"bower_components/async/lib/async.js",
-					"bower_components/av/index.js",
-					"bower_components/mp3/index.js",
-					"bower_components/libmp3lame-js/index.js",
-					"bower_components/wav-encoder/build/wav-encoder.js",
-					"bower_components/FileSaver/FileSaver.js",
-					"bower_components/audiolib/dist/audiolib.js",
-					"src/export.js"
-				].forEach(function(it) {
-					var s = f.document.createElement("script");
-					s.setAttribute("src", qualifyURL("../"+it));
-					f.document.getElementsByTagName("head")[0].appendChild(s);
-				});
-
-				var d = f.document.createElement("div");
-				d.innerHTML = '<button onclick="player.exportMP3(function(blob) { saveAs(blob, \'song.mp3\'); })">Export MP3</button>' +
-					'<button onclick="player.exportWAV(function(blob) { saveAs(blob, \'song.wav\'); })">Export WAV</button>';
-				f.document.getElementsByTagName("body")[0].appendChild(d);
-			}
-		</script>
+		<button onclick="player.play()">Play</button>
+        <button onclick="player.stop()">Stop</button>
+        <button onclick="player.setPosition(0)">Reset</button>
+        Position: <span id="pos"></span>
+        <br>
+        <button onclick="bpm += 10; player.setBeatLength(60000/bpm/4)">+10</button>
+        <button onclick="bpm -= 10; player.setBeatLength(60000/bpm/4)">-10</button>
+        <button onclick="repeat = !repeat; player.setRepeat(repeat)">Toggle repeat</button>
+        <button onclick="pattern = pattern.reverse(); player.setPattern(pattern)">Reverse pattern</button>
+		<br>
+		<button onclick="player.exportMP3().then(function(blob) { saveAs(blob, 'song.mp3'); })">Export MP3</button>
+		<button onclick="player.exportWAV().then(function(blob) { saveAs(blob, 'song.wav'); })">Export WAV</button>
 	</body>
 </html>

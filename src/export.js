@@ -1,204 +1,193 @@
-(function() {
+import AV from 'av';
+import WavEncoder from 'wav-encoder';
+import audioLib from '../lib/audiolib.js';
+import Lame from '../lib/libmp3lame.js';
+import Beatbox from 'beatbox.js';
 
-	function arrayKeys(arr) {
-		return forValues(0, arr.length, 1);
+console.log('Lame', Lame);
+
+function qualifyURL(url) {
+	let el = document.createElement('div');
+	el.innerHTML = '<a href="'+url.split('&').join('&amp;').split('<').join('&lt;').split('"').join('&quot;')+'">x</a>';
+	return el.firstChild.href;
+}
+
+function str2ab(str) {
+	let buf = new ArrayBuffer(str.length);
+	let bufView = new Uint8Array(buf);
+	for (let i=0, strLen=str.length; i<strLen; i++) {
+		bufView[i] = str.charCodeAt(i);
 	}
+	return buf;
+}
 
-	function forValues(start, limit, increase) {
-		var ret = [ ];
-		for(var i=start; i<limit; i+=increase)
-			ret.push(i);
-		return ret;
-	}
+function sliceTypedArray(arr, start, end) {
+	if(arr.slice)
+		return arr.slice(start, end);
 
-	function qualifyURL(url) {
-		var el = document.createElement('div');
-		el.innerHTML = '<a href="'+url.split('&').join('&amp;').split('<').join('&lt;').split('"').join('&quot;')+'">x</a>';
-		return el.firstChild.href;
-	}
+	let ret = new arr.constructor(end-start);
+	for(let i=start,j=0; i<end; i++,j++)
+		ret[j] = arr[i];
+	return ret;
+}
 
-	function str2ab(str) {
-		var buf = new ArrayBuffer(str.length);
-		var bufView = new Uint8Array(buf);
-		for (var i=0, strLen=str.length; i<strLen; i++) {
-			bufView[i] = str.charCodeAt(i);
-		}
-		return buf;
-	}
+let e = Beatbox.Export = {
+	_outputSampleRate : 44100,
 
-	function sliceTypedArray(arr, start, end) {
-		if(arr.slice)
-			return arr.slice(start, end);
+	async _getWaveForInstrument(instrumentObj) {
+		if(instrumentObj.bbChannelData)
+			return instrumentObj.bbChannelData;
 
-		var ret = new arr.constructor(end-start);
-		for(var i=start,j=0; i<end; i++,j++)
-			ret[j] = arr[i];
-		return ret;
-	}
+		let channelData = null;
+		if(typeof instrumentObj.soundObj.bbChannelData != "undefined")
+			channelData = instrumentObj.soundObj.bbChannelData;
+		else {
+			let url = instrumentObj.soundObj._src;
 
-	var e = Beatbox.Export = {
-		_outputSampleRate : 44100,
-		_getWaveForInstrument : function(instrumentObj, callback) {
-			if(instrumentObj.bbChannelData)
-				return callback(instrumentObj.bbChannelData);
+			let asset = null;
+			if(url.match(/^data:/)) {
+				let m = url.match(/base64,(.*)$/);
+				asset = AV.Asset.fromBuffer(str2ab(atob(m[1])));
+			} else
+				asset = AV.Asset.fromURL(qualifyURL(url));
 
-			async.waterfall([
-				function(next) {
-					if(typeof instrumentObj.soundObj.bbChannelData != "undefined")
-						return next(null, instrumentObj.soundObj.bbChannelData);
+			try {
+				channelData = await e._decodeToBuffer(asset);
+			} catch(e) {
+				console.error("Error decoding "+instrumentObj.soundObj._src+":", e);
+			}
 
-					var url = instrumentObj.soundObj._urls[0];
+			instrumentObj.soundObj.bbChannelData = channelData || null;
 
-					var asset = null;
-					if(url.match(/^data:/)) {
-						var m = url.match(/base64,(.*)$/);
-						asset = AV.Asset.fromBuffer(str2ab(atob(m[1])));
-					} else
-						asset = AV.Asset.fromURL(qualifyURL(url));
-
-
-					e._decodeToBuffer(asset, function(err, channelData) {
-						if(err)
-							console.error("Error decoding "+instrumentObj.soundObj._urls[0]+":", err);
-
-						instrumentObj.soundObj.bbChannelData = channelData || null;
-
-						next(null, channelData);
-					});
-				},
-				function(channelData, next) {
-					if(instrumentObj.sprite) {
-						instrumentObj.bbChannelData = [ ];
-						var sprite = instrumentObj.soundObj._sprite[instrumentObj.sprite] || [ 0, 0 ];
-						for(var i=0; i<channelData.length; i++) {
-							instrumentObj.bbChannelData.push(sliceTypedArray(channelData[i], sprite[0] * e._outputSampleRate / 1000, (sprite[0] + sprite[1]) * e._outputSampleRate / 1000));
-						}
-					} else
-						instrumentObj.bbChannelData = channelData;
-
-					callback(instrumentObj.bbChannelData);
+			if(instrumentObj.sprite) {
+				instrumentObj.bbChannelData = [ ];
+				let sprite = instrumentObj.soundObj._sprite[instrumentObj.sprite] || [ 0, 0 ];
+				for(let i=0; i<channelData.length; i++) {
+					instrumentObj.bbChannelData.push(sliceTypedArray(channelData[i], sprite[0] * e._outputSampleRate / 1000, (sprite[0] + sprite[1]) * e._outputSampleRate / 1000));
 				}
-			]);
-		},
+			} else
+				instrumentObj.bbChannelData = channelData;
 
-		_decodeToBuffer : function(asset, callback) {
-			asset.decodeToBuffer(function(buffer) {
-				asset.get("format", function(format) {
-					var length = Math.ceil(buffer.length / format.channelsPerFrame);
-
-					var left = new Float32Array(length);
-					var right = new Float32Array(length);
-
-					for(var i=0; i<length; i++) {
-						left[i] = buffer[i*format.channelsPerFrame];
-						right[i] = buffer[i*format.channelsPerFrame + (format.channelsPerFrame > 1 ? 1 : 0)];
-					}
-
-					if(format.sampleRate != e._outputSampleRate) {
-						left = audioLib.Sink.resample(left, format.sampleRate, e._outputSampleRate);
-						right = audioLib.Sink.resample(right, format.sampleRate, e._outputSampleRate);
-					}
-
-					callback(null, [ left, right ]);
-				});
-			});
-
-			asset.on("error", callback);
-		},
-
-		_encodeWAV : function(left, right, callback) {
-			WavEncoder.encode({
-				sampleRate: e._outputSampleRate,
-				channelData: [
-					left,
-					right
-				]
-			}).then(function(buffer) {
-				callback(new Blob([ buffer ], { type: "audio/wav" }));
-			})
-		},
-
-		_encodeMP3 : function(left, right, callback, progressCallback) {
-			var mp3codec = Lame.init();
-			Lame.set_mode(mp3codec, Lame.JOINT_STEREO);
-			Lame.set_num_channels(mp3codec, 2);
-			Lame.set_in_samplerate(mp3codec, e._outputSampleRate);
-			Lame.set_out_samplerate(mp3codec, e._outputSampleRate);
-			Lame.set_bitrate(mp3codec, 128);
-			Lame.init_params(mp3codec);
-
-			var data = [ ];
-			var bufferLength = 5000;
-			async.eachSeries(forValues(0, left.length, bufferLength), function(i, next) {
-				data.push(Lame.encode_buffer_ieee_float(mp3codec, left.subarray(i, i+bufferLength), right.subarray(i, i+bufferLength)).data);
-				progressCallback && progressCallback(i/left.length);
-				async.nextTick(next);
-			}, function() {
-				data.push(Lame.encode_flush(mp3codec).data);
-
-				Lame.close(mp3codec);
-
-				callback(new Blob(data, { type: "audio/mp3" }));
-			});
-		},
-
-		_getBufferForPattern : function(pattern, strokeLength, callback, progressCallback) {
-			var bufferL = new Float32Array(Math.ceil((3000+pattern.length*strokeLength)*e._outputSampleRate / 1000));
-			var bufferR = new Float32Array(Math.ceil((3000+pattern.length*strokeLength)*e._outputSampleRate / 1000));
-			var maxPos = 0;
-			var lastProgress = 0;
-			async.eachSeries(arrayKeys(pattern), function(i, next) {
-				async.eachSeries(arrayKeys(pattern[i]), function(j, next) {
-					var instrWithParams = Beatbox._getInstrumentWithParams(pattern[i][j]);
-					if(!instrWithParams)
-						return async.nextTick(next);
-
-					e._getWaveForInstrument(instrWithParams.instrumentObj, function(channelData) {
-						if(channelData) {
-							var pos,waveIdx;
-							for(pos=Math.floor(i*strokeLength*e._outputSampleRate / 1000),waveIdx=0; waveIdx<channelData[0].length; pos++,waveIdx++) {
-								bufferL[pos] += channelData[0][waveIdx] * instrWithParams.volume;
-								bufferR[pos] += channelData[1][waveIdx] * instrWithParams.volume;
-							}
-							maxPos = Math.max(maxPos, pos);
-						}
-
-						async.nextTick(next);
-					});
-				}, function() {
-					var newProgress = i/pattern.length;
-					if(newProgress - lastProgress > 0.003) {
-						progressCallback && progressCallback(newProgress);
-						lastProgress = newProgress;
-					}
-
-					async.nextTick(next);
-				});
-			}, function() {
-				for(var i=0; i<bufferL.length; i++) {
-					bufferL[i] = Math.tanh(bufferL[i]);
-					bufferR[i] = Math.tanh(bufferR[i]);
-				}
-
-				callback(sliceTypedArray(bufferL, 0, maxPos), sliceTypedArray(bufferR, 0, maxPos));
-			});
+			return instrumentObj.bbChannelData;
 		}
-	};
+	},
 
-	Beatbox.prototype.exportMP3 = function(callback, progressCallback) {
-		e._getBufferForPattern(this._pattern, this._strokeLength, function(left, right) {
-			e._encodeMP3(left, right, callback, function(progress) {
-				progressCallback && progressCallback(.25 + progress*.75);
-			});
-		}, function(progress) {
-			progressCallback && progressCallback(progress*.25);
+	async _decodeToBuffer(asset) {
+		let buffer = await new Promise((resolve, reject) => {
+			asset.decodeToBuffer(resolve);
+			asset.on("error", reject);
 		});
-	};
 
-	Beatbox.prototype.exportWAV = function(callback, progressCallback) {
-		e._getBufferForPattern(this._pattern, this._strokeLength, function(left, right) {
-			e._encodeWAV(left, right, callback);
-		}, progressCallback);
-	};
+		let format = await new Promise((resolve, reject) => {
+			asset.get("format", resolve);
+			asset.on("error", reject);
+		});
 
-})();
+		let length = Math.ceil(buffer.length / format.channelsPerFrame);
+
+		let left = new Float32Array(length);
+		let right = new Float32Array(length);
+
+		for(let i=0; i<length; i++) {
+			left[i] = buffer[i*format.channelsPerFrame];
+			right[i] = buffer[i*format.channelsPerFrame + (format.channelsPerFrame > 1 ? 1 : 0)];
+		}
+
+		if(format.sampleRate != e._outputSampleRate) {
+			left = audioLib.Sink.resample(left, format.sampleRate, e._outputSampleRate);
+			right = audioLib.Sink.resample(right, format.sampleRate, e._outputSampleRate);
+		}
+
+		return [ left, right ];
+	},
+
+	async _encodeWAV(left, right) {
+		let buffer = await WavEncoder.encode({
+			sampleRate: e._outputSampleRate,
+			channelData: [
+				left,
+				right
+			]
+		});
+
+		return new Blob([ buffer ], { type: "audio/wav" });
+	},
+
+	async _encodeMP3(left, right, progressCallback) {
+		let mp3codec = Lame.init();
+		Lame.set_mode(mp3codec, Lame.JOINT_STEREO);
+		Lame.set_num_channels(mp3codec, 2);
+		Lame.set_in_samplerate(mp3codec, e._outputSampleRate);
+		Lame.set_out_samplerate(mp3codec, e._outputSampleRate);
+		Lame.set_bitrate(mp3codec, 128);
+		Lame.init_params(mp3codec);
+
+		let data = [ ];
+		let bufferLength = 5000;
+		for(let i=0; i<left.length; i+=bufferLength) {
+			data.push(Lame.encode_buffer_ieee_float(mp3codec, left.subarray(i, i+bufferLength), right.subarray(i, i+bufferLength)).data);
+			progressCallback && progressCallback(i/left.length);
+
+			await Promise.resolve(); // nextTick
+		}
+
+		data.push(Lame.encode_flush(mp3codec).data);
+
+		Lame.close(mp3codec);
+
+		return new Blob(data, { type: "audio/mp3" });
+	},
+
+	async _getBufferForPattern(pattern, strokeLength, progressCallback) {
+		let bufferL = new Float32Array(Math.ceil((3000+pattern.length*strokeLength)*e._outputSampleRate / 1000));
+		let bufferR = new Float32Array(Math.ceil((3000+pattern.length*strokeLength)*e._outputSampleRate / 1000));
+		let maxPos = 0;
+		let lastProgress = 0;
+
+		for(let i=0; i<pattern.length; i++) {
+			for(let j=0; j<pattern[i].length; j++) {
+				await Promise.resolve(); // nextTick
+
+				let instrWithParams = Beatbox._getInstrumentWithParams(pattern[i][j]);
+				if(!instrWithParams)
+					continue;
+
+				let channelData = await e._getWaveForInstrument(instrWithParams.instrumentObj);
+
+				if(channelData) {
+					let pos,waveIdx;
+					for(pos=Math.floor(i*strokeLength*e._outputSampleRate / 1000),waveIdx=0; waveIdx<channelData[0].length; pos++,waveIdx++) {
+						bufferL[pos] += channelData[0][waveIdx] * instrWithParams.volume;
+						bufferR[pos] += channelData[1][waveIdx] * instrWithParams.volume;
+					}
+					maxPos = Math.max(maxPos, pos);
+				}
+			}
+
+			await Promise.resolve(); // nextTick
+
+			let newProgress = i/pattern.length;
+			if(newProgress - lastProgress > 0.003) {
+				progressCallback && progressCallback(newProgress);
+				lastProgress = newProgress;
+			}
+		}
+
+		for(let i=0; i<bufferL.length; i++) {
+			bufferL[i] = Math.tanh(bufferL[i]);
+			bufferR[i] = Math.tanh(bufferR[i]);
+		}
+
+		return [ sliceTypedArray(bufferL, 0, maxPos), sliceTypedArray(bufferR, 0, maxPos) ];
+	}
+};
+
+Beatbox.prototype.exportMP3 = async function(progressCallback) {
+	let [ left, right ] = await e._getBufferForPattern(this._pattern, this._strokeLength, (progress) => { progressCallback && progressCallback(progress*.25) });
+	return await e._encodeMP3(left, right, (progress) => { progressCallback && progressCallback(.25 + progress*.75) });
+};
+
+Beatbox.prototype.exportWAV = async function(progressCallback) {
+	let [ left, right ] = await e._getBufferForPattern(this._pattern, this._strokeLength, progressCallback);
+	return await e._encodeWAV(left, right);
+};
