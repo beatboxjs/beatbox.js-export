@@ -4,8 +4,6 @@ import audioLib from '../lib/audiolib.js';
 import Lame from '../lib/libmp3lame.js';
 import Beatbox from 'beatbox.js';
 
-console.log('Lame', Lame);
-
 function qualifyURL(url) {
 	let el = document.createElement('div');
 	el.innerHTML = '<a href="'+url.split('&').join('&amp;').split('<').join('&lt;').split('"').join('&quot;')+'">x</a>';
@@ -128,7 +126,7 @@ let e = Beatbox.Export = {
 			data.push(Lame.encode_buffer_ieee_float(mp3codec, left.subarray(i, i+bufferLength), right.subarray(i, i+bufferLength)).data);
 			progressCallback && progressCallback(i/left.length);
 
-			await Promise.resolve(); // nextTick
+			await this._nextTick();
 		}
 
 		data.push(Lame.encode_flush(mp3codec).data);
@@ -146,7 +144,7 @@ let e = Beatbox.Export = {
 
 		for(let i=0; i<pattern.length; i++) {
 			for(let j=0; j<pattern[i].length; j++) {
-				await Promise.resolve(); // nextTick
+				await this._nextTick();
 
 				let instrWithParams = Beatbox._getInstrumentWithParams(pattern[i][j]);
 				if(!instrWithParams)
@@ -164,7 +162,7 @@ let e = Beatbox.Export = {
 				}
 			}
 
-			await Promise.resolve(); // nextTick
+			await this._nextTick();
 
 			let newProgress = i/pattern.length;
 			if(newProgress - lastProgress > 0.003) {
@@ -179,6 +177,12 @@ let e = Beatbox.Export = {
 		}
 
 		return [ sliceTypedArray(bufferL, 0, maxPos), sliceTypedArray(bufferR, 0, maxPos) ];
+	},
+
+	async _nextTick() {
+		await new Promise((resolve) => {
+			setTimeout(resolve, 0);
+		});
 	}
 };
 

@@ -9,10 +9,10 @@ module.exports = {
 			{ test: require.resolve("beatbox.js"), loader: "expose-loader?Beatbox" },
 			{ test: require.resolve("howler"), loader: "expose-loader?howler" },
 			{
-				test: [
+				resource: { and: [ /\.js/, [
 					__dirname + "/src/",
 					__dirname + "/node_modules/beatbox.js/"
-				],
+				] ] },
 				loader: "babel-loader?presets=env"
 			},
 			{ test: /\.coffee$/, loader: "coffee-loader" },

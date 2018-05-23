@@ -18,16 +18,20 @@ aurora.js decoder (by simply loading the [FLAC.js](https://github.com/audiocogs/
 ```javascript
 var player = new Beatbox(pattern, beatLength, repeat); // See beatbox.js documentation
 
-player.exportMP3(function(blob) {
-	saveAs(blob, "song.mp3");
-}, function(progress) {
+player.exportMP3((progress) => {
 	// progress is a number between 0 and 1
+}).then((blob) => {
+	saveAs(blob, "song.mp3");
+}).catch((err) => {
+	console.error(err);
 });
 
-player.exportWAV(function(blob) {
-	saveAs(blob, "song.wav");
-}, function(progress) {
+player.exportWAV((progress) => {
 	// progress is a number between 0 and 1
+}).then((blob) => {
+	saveAs(blob, "song.wav");
+}).catch((err) => {
+	console.error(err);
 });
 ```
 
