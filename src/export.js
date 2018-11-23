@@ -37,10 +37,10 @@ let e = Beatbox.Export = {
 			return instrumentObj.bbChannelData;
 
 		let channelData = null;
-		if(typeof instrumentObj.soundObj.bbChannelData != "undefined")
-			channelData = instrumentObj.soundObj.bbChannelData;
+		if(typeof instrumentObj.howl.bbChannelData != "undefined")
+			channelData = instrumentObj.howl.bbChannelData;
 		else {
-			let url = instrumentObj.soundObj._src;
+			let url = instrumentObj.howl._src;
 
 			let asset = null;
 			if(url.match(/^data:/)) {
@@ -52,14 +52,14 @@ let e = Beatbox.Export = {
 			try {
 				channelData = await e._decodeToBuffer(asset);
 			} catch(e) {
-				console.error("Error decoding "+instrumentObj.soundObj._src+":", e);
+				console.error("Error decoding "+instrumentObj.howl._src+":", e);
 			}
 
-			instrumentObj.soundObj.bbChannelData = channelData || null;
+			instrumentObj.howl.bbChannelData = channelData || null;
 
 			if(instrumentObj.sprite) {
 				instrumentObj.bbChannelData = [ ];
-				let sprite = instrumentObj.soundObj._sprite[instrumentObj.sprite] || [ 0, 0 ];
+				let sprite = instrumentObj.howl._sprite[instrumentObj.sprite] || [ 0, 0 ];
 				for(let i=0; i<channelData.length; i++) {
 					instrumentObj.bbChannelData.push(sliceTypedArray(channelData[i], sprite[0] * e._outputSampleRate / 1000, (sprite[0] + sprite[1]) * e._outputSampleRate / 1000));
 				}
