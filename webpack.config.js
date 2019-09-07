@@ -1,6 +1,5 @@
 const nodeExternals = require('webpack-node-externals');
 const BundleAnalyzerPlugin = require('webpack-bundle-analyzer').BundleAnalyzerPlugin;
-const ForkTsCheckerWebpackPlugin = require('fork-ts-checker-webpack-plugin');
 
 module.exports = (env, argv) => {
 
@@ -30,11 +29,11 @@ module.exports = (env, argv) => {
 											useBuiltIns: "usage",
 											corejs: 3
 										}
-									],
-									"@babel/preset-typescript"
+									]
 								]
 							}
-						}
+						},
+						"ts-loader"
 					]
 				},
 				{ test: /\.coffee$/, loader: "coffee-loader" }
@@ -67,7 +66,6 @@ module.exports = (env, argv) => {
 			},
 			externals: [ nodeExternals() ],
 			plugins: [
-				new ForkTsCheckerWebpackPlugin(),
 				//new BundleAnalyzerPlugin()
 			]
 		}
