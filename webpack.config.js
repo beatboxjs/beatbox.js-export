@@ -1,3 +1,7 @@
+const nodeExternals = require('webpack-node-externals');
+const BundleAnalyzerPlugin = require('webpack-bundle-analyzer').BundleAnalyzerPlugin;
+const ForkTsCheckerWebpackPlugin = require('fork-ts-checker-webpack-plugin');
+
 module.exports = (env, argv) => {
 
 	const isDev = argv.mode == "development";
@@ -8,7 +12,34 @@ module.exports = (env, argv) => {
 			extensions: [ ".js", ".ts" ]
 		},
 		mode: isDev ? "development" : "production",
-		devtool: isDev ? "cheap-eval-source-map" : "source-map"
+		devtool: isDev ? "cheap-eval-source-map" : "source-map",
+		module: {
+			rules: [
+				{
+					resource: { and: [ /\.ts/, [
+						__dirname + "/src/"
+					] ] },
+					use: [
+						{
+							loader: "babel-loader",
+							options: {
+								presets: [
+									[
+										"@babel/preset-env",
+										{
+											useBuiltIns: "usage",
+											corejs: 3
+										}
+									],
+									"@babel/preset-typescript"
+								]
+							}
+						}
+					]
+				},
+				{ test: /\.coffee$/, loader: "coffee-loader" }
+			]
+		}
 	};
 
 	return [
@@ -22,33 +53,6 @@ module.exports = (env, argv) => {
 			externals: {
 				"beatbox.js": "Beatbox"
 			},
-			module: {
-				rules: [
-					{
-						resource: { and: [ /\.ts/, [
-							__dirname + "/src/"
-						] ] },
-						use: [
-							{
-								loader: "babel-loader",
-								options: {
-									presets: [
-										[
-											"@babel/preset-env",
-											{
-												useBuiltIns: "usage",
-												corejs: 3
-											}
-										],
-										"@babel/preset-typescript"
-									]
-								}
-							}
-						]
-					},
-					{ test: /\.coffee$/, loader: "coffee-loader" }
-				]
-			},
 			devServer: {
 				publicPath: "/demo/"
 			}
@@ -61,27 +65,11 @@ module.exports = (env, argv) => {
 				path: __dirname + "/dist/",
 				libraryTarget: "umd"
 			},
-			externals: {
-				"beatbox.js": {
-					root: "Beatbox",
-					commonjs: "beatbox.js",
-					commonjs2: "beatbox.js",
-					amd: "beatbox.js"
-				}
-			},
-			module: {
-				rules: [
-					{
-						resource: { and: [ /\.ts/, [
-							__dirname + "/src/"
-						] ] },
-						use: [
-							"ts-loader"
-						]
-					},
-					{ test: /\.coffee$/, loader: "coffee-loader" }
-				]
-			}
+			externals: [ nodeExternals() ],
+			plugins: [
+				new ForkTsCheckerWebpackPlugin(),
+				//new BundleAnalyzerPlugin()
+			]
 		}
 	];
 };
