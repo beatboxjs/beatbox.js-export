@@ -4,3 +4,6 @@ node_modules
 yalc.lock
 yarn-error.log
 yarn.lock
+demo/beatbox-export.js
+demo/beatbox-export.js.map
+dist
