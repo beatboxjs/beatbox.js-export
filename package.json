@@ -1,6 +1,6 @@
 {
   "name": "beatbox.js-export",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Export a beatbox.js song to an audio file.",
   "main": "dist/beatbox-export.js",
   "types": "dist/export.d.ts",
@@ -39,7 +39,7 @@
   },
   "dependencies": {
     "av": "^0.4.9",
-    "beatbox.js": "^1.2.0",
+    "beatbox.js": "^1.2.1",
     "core-js": "^3.2.1",
     "mp3": "^0.1.0",
     "regenerator-runtime": "^0.13.3",
