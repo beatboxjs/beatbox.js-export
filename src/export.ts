@@ -153,10 +153,11 @@ async function getBufferForPattern(pattern: Pattern, strokeLength: number, progr
 	let lastProgress = 0;
 
 	for(let i=0; i<pattern.length; i++) {
-		for(let j=0; j<pattern[i].length; j++) {
+		const part = pattern[i] || [];
+		for(let j=0; j<part.length; j++) {
 			await nextTick();
 
-			let instrWithParams = Beatbox._getInstrumentWithParams(pattern[i][j]);
+			let instrWithParams = Beatbox._getInstrumentWithParams(part[j]);
 			if(!instrWithParams)
 				continue;
 
