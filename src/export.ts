@@ -16,6 +16,7 @@ declare module "beatbox.js" {
 	}
 }
 
+type ProgressCallback = (progress: number) => void | Promise<void>;
 type LeftAndRight = [Float32Array, Float32Array];
 
 function qualifyURL(url: string): string {
@@ -121,7 +122,7 @@ async function encodeWAV(left: Float32Array, right: Float32Array): Promise<Blob>
 	return new Blob([ buffer ], { type: "audio/wav" });
 }
 
-async function encodeMP3(left: Float32Array, right: Float32Array, progressCallback?: (progress: number) => void): Promise<Blob> {
+async function encodeMP3(left: Float32Array, right: Float32Array, progressCallback?: ProgressCallback): Promise<Blob> {
 	let mp3codec = Lame.init();
 	Lame.set_mode(mp3codec, Lame.JOINT_STEREO);
 	Lame.set_num_channels(mp3codec, 2);
@@ -131,10 +132,10 @@ async function encodeMP3(left: Float32Array, right: Float32Array, progressCallba
 	Lame.init_params(mp3codec);
 
 	let data = [ ];
-	let bufferLength = 5000;
+	let bufferLength = 1000;
 	for(let i=0; i<left.length; i+=bufferLength) {
 		data.push(Lame.encode_buffer_ieee_float(mp3codec, left.subarray(i, i+bufferLength), right.subarray(i, i+bufferLength)).data);
-		progressCallback && progressCallback(i/left.length);
+		progressCallback && await progressCallback(i/left.length);
 
 		await nextTick();
 	}
@@ -146,7 +147,7 @@ async function encodeMP3(left: Float32Array, right: Float32Array, progressCallba
 	return new Blob(data, { type: "audio/mp3" });
 }
 
-async function getBufferForPattern(pattern: Pattern, strokeLength: number, progressCallback?: (progress: number) => void): Promise<LeftAndRight> {
+async function getBufferForPattern(pattern: Pattern, strokeLength: number, progressCallback?: ProgressCallback): Promise<LeftAndRight> {
 	let bufferL = new Float32Array(Math.ceil((3000+pattern.length*strokeLength)*outputSampleRate / 1000));
 	let bufferR = new Float32Array(Math.ceil((3000+pattern.length*strokeLength)*outputSampleRate / 1000));
 	let maxPos = 0;
@@ -177,7 +178,7 @@ async function getBufferForPattern(pattern: Pattern, strokeLength: number, progr
 
 		let newProgress = i/pattern.length;
 		if(newProgress - lastProgress > 0.003) {
-			progressCallback && progressCallback(newProgress);
+			progressCallback && await progressCallback(newProgress);
 			lastProgress = newProgress;
 		}
 	}
@@ -196,12 +197,12 @@ async function nextTick() {
 	});
 }
 
-Beatbox.prototype.exportMP3 = async function(progressCallback?: (progress: number) => void): Promise<Blob> {
-	let [ left, right ] = await getBufferForPattern(this._pattern, this._strokeLength, (progress) => { progressCallback && progressCallback(progress*.25) });
-	return await encodeMP3(left, right, (progress) => { progressCallback && progressCallback(.25 + progress*.75) });
+Beatbox.prototype.exportMP3 = async function(progressCallback?: ProgressCallback): Promise<Blob> {
+	let [ left, right ] = await getBufferForPattern(this._pattern, this._strokeLength, (progress) => progressCallback && progressCallback(progress*.25));
+	return await encodeMP3(left, right, (progress) => progressCallback && progressCallback(.25 + progress*.75));
 };
 
-Beatbox.prototype.exportWAV = async function(progressCallback?: (progress: number) => void): Promise<Blob> {
+Beatbox.prototype.exportWAV = async function(progressCallback?: ProgressCallback): Promise<Blob> {
 	let [ left, right ] = await getBufferForPattern(this._pattern, this._strokeLength, progressCallback);
 	return await encodeWAV(left, right);
 };

@@ -35,6 +35,28 @@ player.exportWAV((progress) => {
 });
 ```
 
+Cancel
+------
+
+It is possible to let the progress callback return a promise, which will cause exporting to pause until the promise
+resolves. This can be used to create some artificial delays (for example for running a progress animation) or to cancel
+the export (by never resolving the promise):
+
+```javascript
+let canceled = false;
+
+function cancelExport() {
+    canceled = true;
+}
+
+const exportPromise = player.exportMP3((progress) => {
+    if(canceled)
+        return new Promise(); // Return promise that never resolves to cancel the export
+    else
+        return new Promise((resolve) => setTimeout(resolve, 50)); // Delay to let an animation run
+});
+```
+
 Demo
 ====
 
