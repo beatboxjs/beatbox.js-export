@@ -1,208 +1,76 @@
-import AV from 'av';
 import WavEncoder from 'wav-encoder';
-import audioLib from '../lib/audiolib.js';
-import Lame from '../lib/libmp3lame.js';
-import Beatbox, { Pattern, SoundReference } from 'beatbox.js';
-import 'mp3';
+import Beatbox from 'beatbox.js';
+import lamejs from "lamejs";
 
-declare module "beatbox.js" {
-	interface Beatbox {
-		exportMP3: (progressCallback?: (progress: number) => void) => Promise<Blob>,
-		exportWAV: (progressCallback?: (progress: number) => void) => Promise<Blob>
-	}
+type ProgressCallback = (progress: number) => boolean | undefined | Promise<boolean | undefined>;
 
-	interface SoundReference {
-		bbChannelData: LeftAndRight | null;
-	}
-}
+export async function exportWAV(beatbox: Beatbox, progressCallback?: ProgressCallback): Promise<Blob | undefined> {
+	const audioBuffer = await new Beatbox(beatbox._pattern, beatbox._strokeLength, false).record();
 
-type ProgressCallback = (progress: number) => void | Promise<void>;
-type LeftAndRight = [Float32Array, Float32Array];
+	if (await progressCallback?.(0.4) === false)
+		return undefined;
+	await nextTick();
 
-function qualifyURL(url: string): string {
-	let el = document.createElement('div');
-	el.innerHTML = '<a href="'+url.split('&').join('&amp;').split('<').join('&lt;').split('"').join('&quot;')+'">x</a>';
-	return (el.firstChild as HTMLLinkElement).href;
-}
+	const channelData = [];
+	for (let i = 0; i < audioBuffer.numberOfChannels; i++)
+		channelData.push(audioBuffer.getChannelData(i));
 
-function str2ab(str: string): ArrayBuffer {
-	let buf = new ArrayBuffer(str.length);
-	let bufView = new Uint8Array(buf);
-	for (let i=0, strLen=str.length; i<strLen; i++) {
-		bufView[i] = str.charCodeAt(i);
-	}
-	return buf;
-}
-
-function sliceTypedArray<T extends AV.TypedArray>(arr: T, start: number, end: number): T {
-	if(arr.slice)
-		return arr.slice(start, end) as T;
-
-	let ret = new (arr.constructor(end-start) as any) as T;
-	for(let i=start,j=0; i<end; i++,j++)
-		ret[j] = arr[i];
-	return ret;
-}
-
-const outputSampleRate = 44100;
-
-async function getWaveForInstrument(instrumentObj: SoundReference): Promise<LeftAndRight> {
-	if(instrumentObj.bbChannelData)
-		return instrumentObj.bbChannelData;
-
-	if(!instrumentObj.howl.bbChannelData) {
-		let url = instrumentObj.howl._src;
-
-		let asset: AV.Asset | null = null;
-		const m = url.match(/^data:([^,]*),(.*)$/);
-		if(m) {
-			const url = decodeURIComponent(m[2]);
-			asset = AV.Asset.fromBuffer(str2ab(m[1].endsWith(";base64") ? atob(url) : url));
-		} else
-			asset = AV.Asset.fromURL(qualifyURL(url));
-
-		try {
-			instrumentObj.howl.bbChannelData = await decodeToBuffer(asset);
-		} catch(e) {
-			console.error("Error decoding "+instrumentObj.howl._src+":", e);
-			instrumentObj.howl.bbChannelData = [ new Float32Array(0), new Float32Array(0) ];
-		}
-	}
-
-	if(instrumentObj.sprite) {
-		let sprite = instrumentObj.howl._sprite[instrumentObj.sprite] || [ 0, 0 ];
-		instrumentObj.bbChannelData = [
-			sliceTypedArray(instrumentObj.howl.bbChannelData[0], sprite[0] * outputSampleRate / 1000, (sprite[0] + sprite[1]) * outputSampleRate / 1000),
-			sliceTypedArray(instrumentObj.howl.bbChannelData[1], sprite[0] * outputSampleRate / 1000, (sprite[0] + sprite[1]) * outputSampleRate / 1000)
-		];
-	} else
-		instrumentObj.bbChannelData = instrumentObj.howl.bbChannelData;
-
-	return instrumentObj.bbChannelData;
-}
-
-async function decodeToBuffer(asset: AV.Asset): Promise<LeftAndRight> {
-	let buffer: Float32Array = await new Promise((resolve, reject) => {
-		asset.decodeToBuffer(resolve);
-		asset.on("error", reject);
+	const buffer = await WavEncoder.encode({
+		sampleRate: audioBuffer.sampleRate,
+		channelData
 	});
 
-	let format: AV.Format = await new Promise((resolve, reject) => {
-		asset.get("format", resolve);
-		asset.on("error", reject);
-	});
-
-	let length = Math.ceil(buffer.length / format.channelsPerFrame);
-
-	let left = new Float32Array(length);
-	let right = new Float32Array(length);
-
-	for(let i=0; i<length; i++) {
-		left[i] = buffer[i*format.channelsPerFrame];
-		right[i] = buffer[i*format.channelsPerFrame + (format.channelsPerFrame > 1 ? 1 : 0)];
-	}
-
-	if(format.sampleRate != outputSampleRate) {
-		left = audioLib.Sink.resample(left, format.sampleRate, outputSampleRate);
-		right = audioLib.Sink.resample(right, format.sampleRate, outputSampleRate);
-	}
-
-	return [ left, right ];
-}
-
-async function encodeWAV(left: Float32Array, right: Float32Array): Promise<Blob> {
-	let buffer = await WavEncoder.encode({
-		sampleRate: outputSampleRate,
-		channelData: [
-			left,
-			right
-		]
-	});
+	if (await progressCallback?.(1) === false)
+		return undefined;
 
 	return new Blob([ buffer ], { type: "audio/wav" });
 }
 
-async function encodeMP3(left: Float32Array, right: Float32Array, progressCallback?: ProgressCallback): Promise<Blob> {
-	let mp3codec = Lame.init();
-	Lame.set_mode(mp3codec, Lame.JOINT_STEREO);
-	Lame.set_num_channels(mp3codec, 2);
-	Lame.set_in_samplerate(mp3codec, outputSampleRate);
-	Lame.set_out_samplerate(mp3codec, outputSampleRate);
-	Lame.set_bitrate(mp3codec, 128);
-	Lame.init_params(mp3codec);
+export async function exportMP3(beatbox: Beatbox, progressCallback?: ProgressCallback): Promise<Blob | undefined> {
+	const audioBuffer = await new Beatbox(beatbox._pattern, beatbox._strokeLength, false).record();
 
-	let data = [ ];
-	let bufferLength = 1000;
-	for(let i=0; i<left.length; i+=bufferLength) {
-		data.push(Lame.encode_buffer_ieee_float(mp3codec, left.subarray(i, i+bufferLength), right.subarray(i, i+bufferLength)).data);
-		progressCallback && await progressCallback(i/left.length);
+	const channelData = new Array(audioBuffer.numberOfChannels);
+	for (let i = 0; i < audioBuffer.numberOfChannels; i++) {
+		const ch = audioBuffer.getChannelData(i);
+		channelData[i] = new Int32Array(ch.length);
+		for (let j = 0; j < ch.length; j++) {
+			channelData[i][j] = ch[j] < 0 ? ch[j] * 32768 : ch[j] * 32767;
 
+			if (j != 0 && j % 100000 == 0) {
+				if (await progressCallback?.(0.1 * (i + j / ch.length) / audioBuffer.numberOfChannels) === false)
+					return undefined;
+				await nextTick();
+			}
+		}
+	}
+
+	if (await progressCallback?.(0.1) === false)
+		return undefined;
+	await nextTick();
+
+	const mp3encoder = new lamejs.Mp3Encoder(audioBuffer.numberOfChannels, audioBuffer.sampleRate, 128);
+
+	const data = [ ];
+	const bufferLength = 1152;
+	for(let i = 0; i < channelData[0].length; i += bufferLength) {
+		const mp3buf = mp3encoder.encodeBuffer(...channelData.map((channel) => channel.subarray(i, i+bufferLength)));
+		if (mp3buf.length > 0)
+			data.push(mp3buf);
+
+		if (await progressCallback?.(0.1 + 0.9 * Math.min(channelData[0].length, i + bufferLength) / channelData[0].length) === false)
+			return undefined;
 		await nextTick();
 	}
 
-	data.push(Lame.encode_flush(mp3codec).data);
-
-	Lame.close(mp3codec);
+	const mp3buf = mp3encoder.flush();
+	if (mp3buf.length > 0)
+		data.push(mp3buf);
 
 	return new Blob(data, { type: "audio/mp3" });
 }
 
-async function getBufferForPattern(pattern: Pattern, strokeLength: number, progressCallback?: ProgressCallback): Promise<LeftAndRight> {
-	let bufferL = new Float32Array(Math.ceil((3000+pattern.length*strokeLength)*outputSampleRate / 1000));
-	let bufferR = new Float32Array(Math.ceil((3000+pattern.length*strokeLength)*outputSampleRate / 1000));
-	let maxPos = 0;
-	let lastProgress = 0;
-
-	for(let i=0; i<pattern.length; i++) {
-		const part = pattern[i] || [];
-		for(let j=0; j<part.length; j++) {
-			await nextTick();
-
-			let instrWithParams = Beatbox._getInstrumentWithParams(part[j]);
-			if(!instrWithParams)
-				continue;
-
-			let channelData = await getWaveForInstrument(instrWithParams.instrumentObj);
-
-			if(channelData) {
-				let pos,waveIdx;
-				for(pos=Math.floor(i*strokeLength*outputSampleRate / 1000),waveIdx=0; waveIdx<channelData[0].length; pos++,waveIdx++) {
-					bufferL[pos] += channelData[0][waveIdx] * instrWithParams.volume;
-					bufferR[pos] += channelData[1][waveIdx] * instrWithParams.volume;
-				}
-				maxPos = Math.max(maxPos, pos);
-			}
-		}
-
-		await nextTick();
-
-		let newProgress = i/pattern.length;
-		if(newProgress - lastProgress > 0.003) {
-			progressCallback && await progressCallback(newProgress);
-			lastProgress = newProgress;
-		}
-	}
-
-	for(let i=0; i<bufferL.length; i++) {
-		bufferL[i] = Math.tanh(bufferL[i]);
-		bufferR[i] = Math.tanh(bufferR[i]);
-	}
-
-	return [ sliceTypedArray(bufferL, 0, maxPos), sliceTypedArray(bufferR, 0, maxPos) ];
-}
-
 async function nextTick() {
 	await new Promise((resolve) => {
-		setTimeout(resolve, 0);
+		requestAnimationFrame(resolve);
 	});
 }
-
-Beatbox.prototype.exportMP3 = async function(progressCallback?: ProgressCallback): Promise<Blob> {
-	let [ left, right ] = await getBufferForPattern(this._pattern, this._strokeLength, (progress) => progressCallback && progressCallback(progress*.25));
-	return await encodeMP3(left, right, (progress) => progressCallback && progressCallback(.25 + progress*.75));
-};
-
-Beatbox.prototype.exportWAV = async function(progressCallback?: ProgressCallback): Promise<Blob> {
-	let [ left, right ] = await getBufferForPattern(this._pattern, this._strokeLength, progressCallback);
-	return await encodeWAV(left, right);
-};

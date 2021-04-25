@@ -20,8 +20,7 @@ export default (env: any, argv: any): Configuration[] => {
 					use: [
 						"ts-loader"
 					]
-				},
-				{ test: /\.coffee$/, loader: "coffee-loader" }
+				}
 			]
 		}
 	};
@@ -32,7 +31,9 @@ export default (env: any, argv: any): Configuration[] => {
 			name: "demo",
 			output: {
 				filename: "beatbox-export.js",
-				path: __dirname + "/demo/"
+				path: __dirname + "/demo/",
+				library: ["Beatbox", "Export"],
+				libraryTarget: "umd"
 			},
 			externals: {
 				"beatbox.js": "Beatbox"
@@ -40,6 +41,8 @@ export default (env: any, argv: any): Configuration[] => {
 			devServer: {
 				publicPath: "/demo/",
 				injectClient: false, // https://github.com/webpack/webpack-dev-server/issues/2484
+				disableHostCheck: true,
+				port: 8082,
 			}
 		},
 		{
@@ -48,6 +51,7 @@ export default (env: any, argv: any): Configuration[] => {
 			output: {
 				filename: "beatbox-export.js",
 				path: __dirname + "/dist/",
+				library: ["Beatbox", "Export"],
 				libraryTarget: "umd"
 			},
 			externals: [ nodeExternals() ],
