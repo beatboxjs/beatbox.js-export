@@ -1,6 +1,7 @@
 import nodeExternals from "webpack-node-externals";
 import { BundleAnalyzerPlugin } from "webpack-bundle-analyzer";
 import { Configuration } from "webpack";
+import "webpack-dev-server";
 
 export default (env: any, argv: any): Configuration[] => {
 
@@ -39,10 +40,16 @@ export default (env: any, argv: any): Configuration[] => {
 				"beatbox.js": "Beatbox"
 			},
 			devServer: {
-				publicPath: "/demo/",
-				injectClient: false, // https://github.com/webpack/webpack-dev-server/issues/2484
-				disableHostCheck: true,
+				static: {
+					directory: __dirname
+				},
+				devMiddleware: {
+					publicPath: '/demo/'
+				},
+				allowedHosts: "all",
 				port: 8082,
+				hot: 'only',
+				liveReload: false
 			}
 		},
 		{

@@ -14,7 +14,6 @@ export async function exportWAV(beatbox: Beatbox, progressCallback?: ProgressCal
 	const channelData = [];
 	for (let i = 0; i < audioBuffer.numberOfChannels; i++)
 		channelData.push(audioBuffer.getChannelData(i));
-
 	const buffer = await WavEncoder.encode({
 		sampleRate: audioBuffer.sampleRate,
 		channelData
