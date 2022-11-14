@@ -1,9 +1,12 @@
 *.iml
 node_modules
-.yalc
-yalc.lock
-yarn-error.log
-yarn.lock
 demo/beatbox-export.js
 demo/beatbox-export.js.map
 dist
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/sdks
+!.yarn/versions
