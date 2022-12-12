@@ -1,7 +1,5 @@
 *.iml
 node_modules
-demo/beatbox-export.js
-demo/beatbox-export.js.map
 dist
 .pnp.*
 .yarn/*

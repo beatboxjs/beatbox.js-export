@@ -56,6 +56,10 @@ await exportMP3(player, async (progress) => {
 });
 ```
 
+## Migrating from v2 to v3
+
+beatbox.js-export 3.x exports an ES module instead of a UMD bundle. This means that to use it, you need to use a browser or bundler with ESM support.
+
 ## Migrating from v1 to v2
 
 * beatbox.js-export 2.x needs beatbox.js 2.x.
