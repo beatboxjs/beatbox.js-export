@@ -5,6 +5,15 @@ __metadata:
   version: 6
   cacheKey: 8
 
+"@babel/runtime@npm:^7.12.5":
+  version: 7.23.4
+  resolution: "@babel/runtime@npm:7.23.4"
+  dependencies:
+    regenerator-runtime: ^0.14.0
+  checksum: 8eb6a6b2367f7d60e7f7dd83f477cc2e2fdb169e5460694d7614ce5c730e83324bcf29251b70940068e757ad1ee56ff8073a372260d90cad55f18a825caf97cd
+  languageName: node
+  linkType: hard
+
 "@esbuild/android-arm64@npm:0.16.4":
   version: 0.16.4
   resolution: "@esbuild/android-arm64@npm:0.16.4"
@@ -352,10 +361,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/events@npm:^3.0.0":
-  version: 3.0.0
-  resolution: "@types/events@npm:3.0.0"
-  checksum: 9a424c2da210957d5636e0763e8c9fc3aaeee35bf411284ddec62a56a6abe31de9c7c2e713dabdd8a76ff98b47db2bd52f61310be6609641d6234cc842ecbbe3
+"@types/events@npm:^3.0.3":
+  version: 3.0.3
+  resolution: "@types/events@npm:3.0.3"
+  checksum: 50af9312fab001fd6bd4bb3ff65830f940877e6778de140a92481a0d9bf5f4853d44ec758a8800ef60e0598ac43ed1b5688116a3c65906ae54e989278d6c7c82
   languageName: node
   linkType: hard
 
@@ -477,25 +486,25 @@ __metadata:
   dependencies:
     "@types/rollup-plugin-auto-external": ^2.0.2
     "@types/wav-encoder": ^1.3.0
-    beatbox.js: ^3.0.1
+    beatbox.js: ^4.0.0
     file-saver: ^2.0.5
-    lamejs: "https://github.com/zhuker/lamejs.git"
     rimraf: ^3.0.2
     rollup-plugin-auto-external: ^2.0.0
     typescript: ^4.9.4
     vite: ^4.0.1
     vite-plugin-dts: ^1.7.1
+    wasm-media-encoders: ^0.6.4
     wav-encoder: ^1.3.0
   languageName: unknown
   linkType: soft
 
-"beatbox.js@npm:^3.0.1":
-  version: 3.0.1
-  resolution: "beatbox.js@npm:3.0.1"
+"beatbox.js@npm:^4.0.0":
+  version: 4.0.0
+  resolution: "beatbox.js@npm:4.0.0"
   dependencies:
-    "@types/events": ^3.0.0
+    "@types/events": ^3.0.3
     events: ^3.3.0
-  checksum: 570ff0bf5b12c02e31f75cfdf5f1a1e273da50d1c066e4258f2c12b3792da04b610f1e303ff3a43becbbb1da3493a66b4319bc3be2bc48b1f21c6f8613c64074
+  checksum: 81d52633d02c44de9edb0d4d56558073bc4bc6943d374447d36b10fa255e45ba8fed9e634117a5b7f0eb04e12fff7ed81feea2444a7639398dcd054335b56c3c
   languageName: node
   linkType: hard
 
@@ -1185,15 +1194,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"lamejs@https://github.com/zhuker/lamejs.git":
-  version: 1.2.1
-  resolution: "lamejs@https://github.com/zhuker/lamejs.git#commit=582bbba6a12f981b984d8fb9e1874499fed85675"
-  dependencies:
-    use-strict: 1.0.1
-  checksum: fa829e0c170a65573e653b4d908a44aaf06a50e1bbade3b1217a300a03ccd59a537e294e2d924a584f9d70c7726a12d4c3af9c675436d48d08be5fb94b5eb400
-  languageName: node
-  linkType: hard
-
 "load-json-file@npm:^4.0.0":
   version: 4.0.0
   resolution: "load-json-file@npm:4.0.0"
@@ -1615,6 +1615,13 @@ __metadata:
     string_decoder: ^1.1.1
     util-deprecate: ^1.0.1
   checksum: d4ea81502d3799439bb955a3a5d1d808592cf3133350ed352aeaa499647858b27b1c4013984900238b0873ec8d0d8defce72469fb7a83e61d53f5ad61cb80dc8
+  languageName: node
+  linkType: hard
+
+"regenerator-runtime@npm:^0.14.0":
+  version: 0.14.0
+  resolution: "regenerator-runtime@npm:0.14.0"
+  checksum: 1c977ad82a82a4412e4f639d65d22be376d3ebdd30da2c003eeafdaaacd03fc00c2320f18120007ee700900979284fc78a9f00da7fb593f6e6eeebc673fba9a3
   languageName: node
   linkType: hard
 
@@ -2071,13 +2078,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"use-strict@npm:1.0.1":
-  version: 1.0.1
-  resolution: "use-strict@npm:1.0.1"
-  checksum: e2798c587b8dc95483ac376e1b9b13fbab179bbd498ed7bd55cba2ef72792569621ba25d9aa5df21f884a161d28624d39165070a690fc5f088bf903e097fc267
-  languageName: node
-  linkType: hard
-
 "util-deprecate@npm:^1.0.1":
   version: 1.0.2
   resolution: "util-deprecate@npm:1.0.2"
@@ -2155,6 +2155,15 @@ __metadata:
   bin:
     vite: bin/vite.js
   checksum: c51bd7cb955973cce1c63e6d29ac25ea6f8920db6de2ca97f285c80cf9607649d87254d1fabd9aa5920149572a6220686b9e3bf6fd0851f7c86ec8522bba0098
+  languageName: node
+  linkType: hard
+
+"wasm-media-encoders@npm:^0.6.4":
+  version: 0.6.4
+  resolution: "wasm-media-encoders@npm:0.6.4"
+  dependencies:
+    "@babel/runtime": ^7.12.5
+  checksum: a3e2cddf36e121084a02cd1e156734794ad58cf42d6a18a007352fc2b577c1905a191458a866d06e59a37e75136b0f81e3b892857162b07954e0bac4c07ca365
   languageName: node
   linkType: hard
 

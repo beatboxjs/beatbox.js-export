@@ -78,7 +78,7 @@
 		<button onclick="repeat = !repeat; player.setRepeat(repeat)">Toggle repeat</button>
 		<button onclick="pattern = pattern.reverse(); player.setPattern(pattern)">Reverse pattern</button>
 		<br>
-		<button onclick="exportMP3(player).then((blob) => { saveAs(blob, 'song.mp3'); })">Export MP3</button>
-		<button onclick="exportWAV(player).then((blob) => { saveAs(blob, 'song.wav'); })">Export WAV</button>
+		<button onclick="exportMP3(player, { onProgress: console.log }).then((blob) => { saveAs(blob, 'song.mp3'); })">Export MP3</button>
+		<button onclick="exportWAV(player, { onProgress: console.log }).then((blob) => { saveAs(blob, 'song.wav'); })">Export WAV</button>
 	</body>
 </html>

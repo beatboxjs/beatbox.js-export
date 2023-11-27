@@ -1,69 +1,81 @@
 import WavEncoder from 'wav-encoder';
-import Beatbox from 'beatbox.js';
-import lamejs from "lamejs";
+import Beatbox, { BeatboxRecordOptions } from 'beatbox.js';
+import { createMp3Encoder } from "wasm-media-encoders";
 
-type ProgressCallback = (progress: number) => boolean | undefined | Promise<boolean | undefined>;
+export type BeatboxExportOptions = Pick<BeatboxRecordOptions, "onProgress" | "signal">;
 
-export async function exportWAV(beatbox: Beatbox, progressCallback?: ProgressCallback): Promise<Blob | undefined> {
-	const audioBuffer = await new Beatbox(beatbox._pattern, beatbox._strokeLength, false).record();
+export async function exportWAV(beatbox: Beatbox, { onProgress, signal }: BeatboxExportOptions = {}): Promise<Blob> {
+	signal?.throwIfAborted();
 
-	if (await progressCallback?.(0.4) === false)
-		return undefined;
-	await nextTick();
+	const audioBuffer = await new Beatbox(beatbox._pattern, beatbox._strokeLength, false).record({
+		onProgress: onProgress && ((p) => {
+			onProgress(p * 0.4);
+		}),
+		signal
+	});
+
+	signal?.throwIfAborted();
+	onProgress?.(0.4);
 
 	const channelData = [];
 	for (let i = 0; i < audioBuffer.numberOfChannels; i++)
 		channelData.push(audioBuffer.getChannelData(i));
+
 	const buffer = await WavEncoder.encode({
 		sampleRate: audioBuffer.sampleRate,
 		channelData
 	});
 
-	if (await progressCallback?.(1) === false)
-		return undefined;
+	signal?.throwIfAborted();
+	onProgress?.(1);
 
 	return new Blob([ buffer ], { type: "audio/wav" });
 }
 
-export async function exportMP3(beatbox: Beatbox, progressCallback?: ProgressCallback): Promise<Blob | undefined> {
-	const audioBuffer = await new Beatbox(beatbox._pattern, beatbox._strokeLength, false).record();
+export async function exportMP3(beatbox: Beatbox, { onProgress, signal }: BeatboxExportOptions = {}): Promise<Blob> {
+	const [audioBuffer, encoder] = await Promise.all([
+		new Beatbox(beatbox._pattern, beatbox._strokeLength, false).record({
+			onProgress: onProgress && ((p) => {
+				onProgress(p * 0.4);
+			}),
+			signal
+		}),
+		createMp3Encoder()
+	]);
 
-	const channelData = new Array(audioBuffer.numberOfChannels);
-	for (let i = 0; i < audioBuffer.numberOfChannels; i++) {
-		const ch = audioBuffer.getChannelData(i);
-		channelData[i] = new Int32Array(ch.length);
-		for (let j = 0; j < ch.length; j++) {
-			channelData[i][j] = ch[j] < 0 ? ch[j] * 32768 : ch[j] * 32767;
+	signal?.throwIfAborted();
+	onProgress?.(0.4);
 
-			if (j != 0 && j % 100000 == 0) {
-				if (await progressCallback?.(0.1 * (i + j / ch.length) / audioBuffer.numberOfChannels) === false)
-					return undefined;
-				await nextTick();
-			}
-		}
-	}
+	encoder.configure({
+		sampleRate: audioBuffer.sampleRate,
+		channels: audioBuffer.numberOfChannels as any,
+		bitrate: 128
+	});
 
-	if (await progressCallback?.(0.1) === false)
-		return undefined;
-	await nextTick();
+	const channelData = [];
+	for (let i = 0; i < audioBuffer.numberOfChannels; i++)
+		channelData.push(audioBuffer.getChannelData(i));
 
-	const mp3encoder = new lamejs.Mp3Encoder(audioBuffer.numberOfChannels, audioBuffer.sampleRate, 128);
-
-	const data = [ ];
-	const bufferLength = 1152;
+	const data: Uint8Array[] = [];
+	const bufferLength = 115200;
 	for(let i = 0; i < channelData[0].length; i += bufferLength) {
-		const mp3buf = mp3encoder.encodeBuffer(...channelData.map((channel) => channel.subarray(i, i+bufferLength)));
-		if (mp3buf.length > 0)
-			data.push(mp3buf);
+		const mp3buf = encoder.encode(channelData.map((channel) => channel.subarray(i, i+bufferLength)));
+		if (mp3buf.length > 0) {
+			data.push(new Uint8Array(mp3buf));
+		}
 
-		if (await progressCallback?.(0.1 + 0.9 * Math.min(channelData[0].length, i + bufferLength) / channelData[0].length) === false)
-			return undefined;
+		signal?.throwIfAborted();
+		onProgress?.(0.4 + 0.6 * Math.min(channelData[0].length, i + bufferLength) / channelData[0].length);
 		await nextTick();
 	}
 
-	const mp3buf = mp3encoder.flush();
-	if (mp3buf.length > 0)
-		data.push(mp3buf);
+	const mp3buf = encoder.finalize();
+	if (mp3buf.length > 0) {
+		data.push(new Uint8Array(mp3buf));
+	}
+
+	signal?.throwIfAborted();
+	onProgress?.(1);
 
 	return new Blob(data, { type: "audio/mp3" });
 }

@@ -5,7 +5,7 @@ patterns as MP3 or WAV files.
 
 It relies on the following libraries:
 
-* [lamejs](https://github.com/zhuker/lamejs) for MP3 encoding
+* [wasm-media-encoders](https://github.com/arseneyr/wasm-media-encoders) for MP3 encoding
 * [wav-encoder](https://github.com/mohayonao/wav-encoder) for WAV encoding
 
 ## Usage
@@ -18,43 +18,54 @@ import saveAs from "save-as";
 // See beatbox.js documentation. Note that the "repeat" parameter is ignored in the context of exporting.
 var player = new Beatbox(pattern, beatLength, repeat);
 
-let blob = await exportMP3(player, (progress) => {
-	// progress is a number between 0 and 1
-});
+let blob = await exportMP3(player);
 saveAs(blob, "song.mp3");
 
-blob = await exportWAV(player, (progress) => {
-	// progress is a number between 0 and 1
-});
+blob = await exportWAV(player);
 saveAs(blob, "song.wav");
 ```
 
-### Cancel
+### Progress
 
-Returning `false` from the progress function will cancel the export and cause the export function to return `undefined`.
+An optional `onProgress` callback can be passed to track the progress:
+```javascript
+let blob = await exportMP3(player, {
+	onProgress: (progress) => {
+		// Progress is a number between 0 and 1
+		console.log(progress);
+	}
+});
+```
+
+### Abort
+
+You can pass an abort signal to cancel the export. This will cause the export function to throw the signal cause.
 
 ```javascript
-let canceled = false;
+const abortController = new AbortController();
 document.getElementById("cancel-button").addEventListener("click", () => {
-	canceled = true;
+	abortController.abort();
 });
 
-const blob = await exportMP3(player, (progress) => {
-    if (canceled)
-		return false;
-});
-if (blob)
+try {
+	const blob = await exportMP3(player, { signal });
 	saveAs(blob, "song.mp3");
+} catch (err) {
+	if (err instanceof DOMException && err.name === "AbortError") {
+		// Ignore
+	}
+
+	throw err;
+}
 ```
 
-The progress function can also be async. In that case, the export will pause until the async function returns. You can
-for example introduce some delays if you need some animation to run:
+## Migrating from v3 to v4
 
-```javascript
-await exportMP3(player, async (progress) => {
-	await new Promise((resolve) => { setTimeout(resolve, 30); });
-});
-```
+beatbox.js-export 4.x changes the signature of the second argument of the export functions. Rather than taking a
+progress callback, it now takes an object with an optional `onProgress` and `signal` property.
+
+The return value of the progress callback is now ignored, so it cannot be used to cancel or delay the export anymore.
+To cancel the export, the abort signal can now be used.
 
 ## Migrating from v2 to v3
 
