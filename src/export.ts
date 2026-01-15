@@ -56,7 +56,7 @@ export async function exportMP3(beatbox: Beatbox, { onProgress, signal }: Beatbo
 	for (let i = 0; i < audioBuffer.numberOfChannels; i++)
 		channelData.push(audioBuffer.getChannelData(i));
 
-	const data: Uint8Array[] = [];
+	const data: Array<Uint8Array<ArrayBuffer>> = [];
 	const bufferLength = 115200;
 	for(let i = 0; i < channelData[0].length; i += bufferLength) {
 		const mp3buf = encoder.encode(channelData.map((channel) => channel.subarray(i, i+bufferLength)));
