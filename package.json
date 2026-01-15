@@ -1,6 +1,6 @@
 {
   "name": "beatbox.js-export",
-  "version": "4.0.1",
+  "version": "5.0.0",
   "description": "Export a beatbox.js song to an audio file.",
   "main": "dist/beatbox-export.js",
   "types": "dist/beatbox-export.d.ts",
