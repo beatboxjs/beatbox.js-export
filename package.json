@@ -23,7 +23,7 @@
     "check-types": "tsc --noEmit"
   },
   "devDependencies": {
-    "@types/node": "^25.0.8",
+    "@types/node": "^25.0.9",
     "@types/wav-encoder": "^1.3.3",
     "file-saver": "^2.0.5",
     "rimraf": "^6.1.2",
@@ -32,7 +32,7 @@
     "vite-plugin-dts": "^4.5.4"
   },
   "dependencies": {
-    "beatbox.js": "^5.0.0",
+    "beatbox.js": "^5.0.1",
     "wasm-media-encoders": "^0.7.0",
     "wav-encoder": "^1.3.0"
   },
